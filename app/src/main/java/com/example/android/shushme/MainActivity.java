@@ -16,6 +16,8 @@ package com.example.android.shushme;
 * limitations under the License.
 */
 
+import android.content.ContentValues;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -29,12 +31,17 @@ import android.view.View;
 import android.widget.CheckBox;
 import android.widget.Toast;
 
+import com.example.android.shushme.provider.PlaceContract;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.Places;
+import com.google.android.gms.location.places.ui.PlacePicker;
 
 public class MainActivity extends AppCompatActivity implements
         ConnectionCallbacks,
@@ -43,6 +50,7 @@ public class MainActivity extends AppCompatActivity implements
     // Constants
     public static final String TAG = MainActivity.class.getSimpleName();
     private static final int PERMISSIONS_REQUEST_FINE_LOCATION = 111;
+    private static final int PLACE_PICKER_REQUEST = 222;
 
     // Member variables
     private PlaceListAdapter mAdapter;
@@ -119,13 +127,51 @@ public class MainActivity extends AppCompatActivity implements
             Toast.makeText(this, getString(R.string.need_location_permission_message), Toast.LENGTH_LONG).show();
             return;
         }
-        // TODO (1) Create a PlacePicker.IntentBuilder and call startActivityForResult
-        // TODO (2) Handle GooglePlayServices exceptions
+
+        // COMPLETE (1) Create a PlacePicker.IntentBuilder and call startActivityForResult
+        PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
+        try {
+            Intent i = builder.build(this);
+            startActivityForResult(i, PLACE_PICKER_REQUEST);
+        }
+        // COMPLETE (2) Handle GooglePlayServices exceptions
+        catch (GooglePlayServicesRepairableException e) {
+            Toast.makeText(this, "Google Play services not available, place try again later.", Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+        catch (GooglePlayServicesNotAvailableException e) {
+            Toast.makeText(this, "Google Play services not available, place try again later.", Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+
         Toast.makeText(this, getString(R.string.location_permissions_granted_message), Toast.LENGTH_LONG).show();
     }
 
-    // TODO (3) Implement onActivityResult and check that the requestCode is PLACE_PICKER_REQUEST
-    // TODO (4) In onActivityResult, use PlacePicker.getPlace to extract the Place ID and insert it into the DB
+    // COMPLETE (3) Implement onActivityResult and check that the requestCode is PLACE_PICKER_REQUEST
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == PLACE_PICKER_REQUEST & resultCode == RESULT_OK) {
+            Place place = PlacePicker.getPlace(this, data);
+            if (place == null) {
+                Log.i(TAG, "No place selected");
+            }
+            else {
+                // COMPLETE (4) In onActivityResult, use PlacePicker.getPlace to extract the Place ID and insert it into the DB
+                // extract the place info from the api
+                String placeName = place.getName().toString();
+                String placeAddress = "";
+                if (place.getAddress() != null) {
+                    placeAddress = place.getAddress().toString();
+                }
+                String placeID = place.getId();
+
+                // insert new place into db
+                ContentValues cv = new ContentValues();
+                cv.put(PlaceContract.PlaceEntry.COLUMN_PLACE_ID, placeID);
+                getContentResolver().insert(PlaceContract.PlaceEntry.CONTENT_URI, cv);
+            }
+        }
+    }
+
 
     @Override
     public void onResume() {
